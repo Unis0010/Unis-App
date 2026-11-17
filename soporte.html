@@ -223,7 +223,8 @@
         let hist = "";
         for (let mk in msgs) hist += `<div style="margin-bottom:6px; font-size:13px;"><strong style="color:#00e676;">${msgs[mk].remitenteNombre}:</strong> ${msgs[mk].texto}</div>`;
         contChats.innerHTML += `<div class="tarjeta"><h4 style="margin:0 0 10px 0; color:#2979ff;">💬 ${info.nombre} (${info.rol})</h4><div style="background:#121212; padding:10px; border-radius:6px; max-height:150px; overflow-y:auto; margin-bottom:10px;">${hist}</div><div style="display:flex; gap:8px;"><input type="text" id="resp-chat-${uid}" class="motivo-input" placeholder="Responder..."><button class="btn-aprobar" onclick="responderChatSoporte('${uid}')">Enviar</button></div></div>`;
-      }async function atenderSOS(id) { await fetch(`${DB_URL}alertas_sos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ estado: 'atendida' }) }); cargarAlertasYChats(); }
+      
+      async function atenderSOS(id) { await fetch(`${DB_URL}alertas_sos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ estado: 'atendida' }) }); cargarAlertasYChats(); }
     async function responderChatSoporte(uid) {
       const inp = document.getElementById(`resp-chat-${uid}`), texto = inp.value.trim(); if (!texto) return;
       await fetch(`${DB_URL}chats_soporte/${uid}/mensajes.json`, { method: 'POST', body: JSON.stringify({ remitenteId: 'SOPORTE', remitenteNombre: '🎧 Soporte UNIS', texto, hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) });
