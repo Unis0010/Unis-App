@@ -1,0 +1,619 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>UNIS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, sans-serif; }
+body { background: #000; color: #fff; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.top-bar { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000; display: flex; justify-content: space-between; align-items: center; }
+.brand-pill { background: #000; padding: 8px 14px; border-radius: 30px; font-weight: 900; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+.wallet-badge { background: #10b981; color: #000; font-size: 0.78rem; padding: 2px 8px; border-radius: 12px; font-weight: 800; }
+.role-pill { background: #000; padding: 4px; border-radius: 30px; display: flex; box-shadow: 0 4px 12px rgba(0,0,0,0.6); }
+.role-btn { border: none; background: transparent; color: #9ca3af; padding: 7px 14px; border-radius: 25px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.role-btn.active { background: #fff; color: #000; }
+.map-area { position: relative; flex: 1; width: 100%; background: #18181b; }
+#map { width: 100%; height: 100%; }
+.bottom-sheet { background: #111; border-top-left-radius: 24px; border-top-right-radius: 24px; padding: 14px 16px 20px; z-index: 1001; max-height: 64vh; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+.sheet-title { font-size: 1rem; font-weight: 800; text-align: center; }
+.ride-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ride-card { background: #1f1f23; border: 2px solid transparent; border-radius: 12px; padding: 8px 4px; text-align: center; cursor: pointer; }
+.ride-card.selected { border-color: #f97316; background: #27272a; }
+.input-box { width: 100%; background: #1f1f23; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 10px; font-size: 0.88rem; }
+.uber-btn { background: #fff; color: #000; border: none; padding: 14px; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; justify-content: space-between; width: 100%; }
+.btn-green { background: #10b981; color: #000; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; width: 100%; }
+.btn-dark { background: #27272a; color: #fff; border: none; padding: 10px; border-radius: 10px; font-weight: 700; cursor: pointer; text-align: center; text-decoration: none; font-size: 0.82rem; }
+.row-2 { display: flex; gap: 8px; }
+.hidden { display: none !important; }
+.driver-assigned { background: #18181b; border: 1px solid #f97316; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.driver-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid #f97316; }
+.car-thumb { width: 72px; height: 56px; border-radius: 10px; object-fit: cover; border: 1px solid #444; }
+.plate-badge { background: #fff; color: #000; font-weight: 900; padding: 2px 8px; border-radius: 6px; font-size: 0.8rem; display: inline-block; }
+.trip-card { background: #1f1f23; border-left: 4px solid #10b981; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+label.file-btn { flex: 1; display: block; background: #27272a; color: #38bdf8; padding: 9px 6px; border-radius: 10px; text-align: center; font-size: 0.78rem; font-weight: 700; cursor: pointer; border: 1px dashed #38bdf8; }
+</style>
+</head>
+<body>
+
+<div id="splashInicio" style="position:fixed; inset:0; z-index:9999; background:radial-gradient(circle at top, #172554 0%, #090d16 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+  <div style="width:74px; height:74px; border-radius:20px; background:linear-gradient(135deg,#ea580c,#f97316); display:flex; align-items:center; justify-content:center; font-size:2.4rem; font-weight:900; color:#fff; box-shadow:0 8px 25px rgba(249,115,22,0.45); margin-bottom:10px;">U↗</div>
+  <div style="font-size:2.4rem; font-weight:900; letter-spacing:4px; color:#fff; line-height:1;">UNIS</div>
+  <div style="font-size:0.82rem; color:#cbd5e1; margin-top:4px; margin-bottom:20px;">Uniendo destinos, entregando confianza</div>
+  <div style="font-size:0.9rem; font-weight:700; color:#f97316; margin-bottom:12px;">¿Qué servicio necesitas hoy?</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; width:100%; max-width:340px;">
+    <div onclick="iniciarConServicio(0.50,'UNIS GO')" style="background:#0f172a; border:2px solid #f97316; border-radius:18px; padding:16px 10px; cursor:pointer;">
+      <div style="font-size:2rem; margin-bottom:4px;">🚕</div><div style="font-weight:900; font-size:0.92rem;">UNIS GO</div>
+    </div>
+    <div onclick="iniciarConServicio(1.10,'UNIS PRIME')" style="background:#0f172a; border:2px solid #f97316; border-radius:18px; padding:16px 10px; cursor:pointer;">
+      <div style="font-size:2rem; margin-bottom:4px;">🚘</div><div style="font-weight:900; font-size:0.92rem;">UNIS PRIME</div>
+    </div>
+    <div onclick="iniciarConServicio(0.45,'UNIS EATS')" style="background:#0f172a; border:2px solid #f97316; border-radius:18px; padding:16px 10px; cursor:pointer;">
+      <div style="font-size:2rem; margin-bottom:4px;">🍔</div><div style="font-weight:900; font-size:0.92rem;">UNIS EATS</div>
+    </div>
+    <div onclick="iniciarConServicio(0.70,'UNIS PACK')" style="background:#0f172a; border:2px solid #f97316; border-radius:18px; padding:16px 10px; cursor:pointer;">
+      <div style="font-size:2rem; margin-bottom:4px;">📦</div><div style="font-weight:900; font-size:0.92rem;">UNIS PACK</div>
+    </div>
+  </div>
+  <button onclick="entrarConductor()" style="margin-top:20px; background:#f97316; border:none; color:#fff; padding:10px 22px; border-radius:20px; font-size:0.85rem; font-weight:800; cursor:pointer;">🚖 Entrar como Conductor</button>
+</div>
+
+<div class="top-bar">
+  <div class="brand-pill" onclick="document.getElementById('splashInicio').style.display='flex'" style="cursor:pointer;"><span>UNIS</span><span class="wallet-badge" id="saldoHeader">$0.00</span></div>
+  <div class="role-pill">
+    <button class="role-btn active" id="btnCliente" onclick="cambiarModo('cliente')">Viajar</button>
+    <button class="role-btn" id="btnConductor" onclick="cambiarModo('conductor')">Conducir</button>
+  </div>
+</div>
+
+<div class="map-area"><div id="map"></div></div>
+
+<div class="bottom-sheet" id="panelCliente">
+  <div id="regPasajeroBox" style="display:flex; flex-direction:column; gap:8px;">
+    <div style="background:linear-gradient(135deg,#0f172a,#1e3a8a); border:1px solid #38bdf8; border-radius:12px; padding:10px; text-align:center;">
+      <div style="font-weight:900; font-size:0.95rem;">🌍 UNIS POR EL MUNDO</div>
+      <div style="font-size:0.78rem; color:#bae6fd;">Regístrate con tu cédula y recibe <b style="color:#4ade80;">$10.00 DE REGALO</b></div>
+    </div>
+    <input class="input-box" id="pasNombre" placeholder="Tu nombre y apellido">
+    <div class="row-2">
+      <input class="input-box" id="pasCedula" placeholder="Cédula (Ej: V-12345678)">
+      <input class="input-box" id="pasTel" placeholder="Teléfono">
+    </div>
+    <label style="display:flex; align-items:flex-start; gap:8px; font-size:0.76rem; color:#cbd5e1; cursor:pointer;">
+  <input type="checkbox" id="chkTyCPas" style="margin-top:3px;">
+  <span>Acepto los <a href="#" onclick="document.getElementById('modalTyC').classList.remove('hidden'); return false;" style="color:#f97316; font-weight:700;">Términos, Leyes de Tránsito y Política de Seguridad de UNIS Venezuela</a>.</span>
+</label>
+<button class="btn-green" id="btnRegPas" onclick="guardarPasajero()">🎁 Registrar Cédula y Reclamar $10.00</button>
+  </div>
+
+  <div id="viajeActivoBox" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+    <div class="sheet-title" id="estadoViajeTitulo">⏳ Buscando conductor...</div>
+    <div id="infoChoferAsignado"></div>
+    <button class="btn-dark" onclick="finalizarVistaCliente()">Pedir otro viaje</button>
+  </div>
+
+  <div id="formPedidoBox" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+    <div class="sheet-title" id="instruccionTxt">Toca en el mapa recogida y destino</div>
+    <div class="ride-options">
+      <div class="ride-card selected" id="cardGO" onclick="elegirServicio(this,0.50,'UNIS GO')">🚕<br><b>GO</b><br><small id="pX">$2.50</small></div>
+      <div class="ride-card" id="cardPRIME" onclick="elegirServicio(this,1.10,'UNIS PRIME')">🚘<br><b>PRIME</b><br><small id="pB">$2.50</small></div>
+      <div class="ride-card" id="cardEATS" onclick="elegirServicio(this,0.45,'UNIS EATS')">🍔<br><b>EATS</b><br><small id="pE">$2.50</small></div>
+      <div class="ride-card" id="cardPACK" onclick="elegirServicio(this,0.70,'UNIS PACK')">📦<br><b>PACK</b><br><small id="pV">$2.50</small></div>
+    </div>
+    <div class="row-2"><input class="input-box" id="refOrigen" placeholder="Punto recogida"><input class="input-box" id="refDestino" placeholder="Punto destino"></div>
+    <div style="background:#181818; border:1px solid #333; padding:10px; border-radius:8px; margin-top:4px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <span style="font-size:12px; color:#00e676; font-weight:bold;">📲 Pago Móvil Cliente (Datos y Referencia)</span>
+    <span style="font-size:11px; color:#fff; background:#252525; padding:4px 8px; border-radius:4px; cursor:pointer;" onclick="navigator.clipboard.writeText('0102 12345678 04246543780'); alert('Datos de Pago Móvil UNIS copiados: 0102 | 12345678 | 04246543780');">📋 0102 | 12345678 | 0424-6543780</span>
+  </div>
+  <div class="row-2">
+    <select id="cliBancoPM" class="input-box" style="background:#222; color:#fff;">
+      <option value="">Tu Banco...</option>
+      <option value="0102 - Banco de Venezuela">0102 - Venezuela</option>
+      <option value="0134 - Banesco">0134 - Banesco</option>
+      <option value="0105 - Mercantil">0105 - Mercantil</option>
+      <option value="0108 - Provincial">0108 - Provincial</option>
+      <option value="0191 - BNC">0191 - BNC</option>
+      <option value="0172 - Bancamiga">0172 - Bancamiga</option>
+    </select>
+    <input class="input-box" id="cliTelPM" placeholder="Tu Tel. Pago Móvil">
+  </div>
+  <div class="row-2" style="margin-top:6px;">
+    <input class="input-box" id="cliCedulaPM" placeholder="Tu Cédula PM">
+    <input class="input-box" id="cliRefPM" placeholder="Ref. Pago (últimos 6 dígitos)">
+  </div>
+</div>
+<button class="uber-btn" onclick="enviarPedido()"><span>Pedir <b id="nomServ">UNIS GO</b> (Pago App)</span><span id="montoBtn">$0.00</span></button>
+    <button class="btn-dark" onclick="limpiarMapa()">Borrar ruta</button>
+  </div>
+</div>
+
+<div class="bottom-sheet hidden" id="panelConductor">
+  <div id="regConductorBox" style="display:flex; flex-direction:column; gap:8px;">
+    <div class="sheet-title">Registro de Conductor UNIS</div>
+    <div class="row-2">
+      <input class="input-box" id="drvNombre" placeholder="Nombre del chofer">
+      <input class="input-box" id="drvCedula" placeholder="Cédula">
+    </div>
+    <input class="input-box" id="drvTel" placeholder="Teléfono / WhatsApp (Ej: +58412...)">
+    <div class="row-2">
+      <input class="input-box" id="drvCarro" placeholder="Carro y color (Ej: Aveo Azul)">
+      <input class="input-box" id="drvPlaca" placeholder="Placa (Ej: AB123CD)">
+    </div>
+    <div class="row-2">
+<label class="file-btn">🤳 Foto Chofer<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this,'chofer')"></label>
+<label class="file-btn">🚘 Foto Carro<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this,'carro')"></label>
+</div>
+<div class="row-2" style="margin-top:8px;">
+  <label class="file-btn">🪪 Foto Cédula<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this, 'cedula')"></label>
+  <label class="file-btn">💳 Foto Licencia<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this, 'licencia')"></label>
+</div>
+<div class="row-2" style="margin-top:8px;">
+  <label class="file-btn">🔢 Foto de Placa<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this, 'placa')"></label>
+  <label class="file-btn">🛡️ Seguro del Estado<input type="file" accept="image/*" style="display:none;" onchange="procesarFoto(this, 'seguro')"></label>
+</div>
+<div id="previewFotoTxt" style="font-size:0.78rem; color:#10b981; text-align:center;"></div>
+<input class="input-box" id="drvDireccion" placeholder="Dirección residencial exacta (Estado, Ciudad, Sector, Casa/Apto)">
+<label style="display:flex; align-items:flex-start; gap:8px; font-size:0.76rem; color:#cbd5e1; cursor:pointer;">
+  <input type="checkbox" id="chkTyCDrv" style="margin-top:3px;">
+  <span>Declaro que mi dirección residencial es real y acepto los <a href="#" onclick="document.getElementById('modalTyC').classList.remove('hidden'); return false;" style="color:#f97316; font-weight:700;">Términos Legales y Entrega de Datos a Autoridades (CICPC/PNB/INTT)</a>.</span>
+</label>
+<button class="btn-green" onclick="guardarConductor()">Registrar Unidad y Conectarme</button>
+</div>
+<div id="radarConductorBox" class="hidden" style="display:flex; flex-direction:column; gap:8px;">
+<div style="display:flex; justify-content:space-between; background:#18181b; padding:10px; border-radius:10px; font-size:0.82rem;">
+<div><b id="drvHeaderNombre">Chofer</b><br><small id="drvHeaderCarro" style="color:#aaa;">Carro</small></div>
+<div style="text-align:right; color:#10b981;"><b>90% Tuyo: $<span id="drvGananciaTxt">0.00</span></b><br><small style="color:#888;">10% App: $<span id="appComisionTxt">0.00</span></small></div>
+</div>
+<div id="contenedorViajes"></div>
+<button class="btn-dark" onclick="editarPerfilConductor()">Editar Perfil / Fotos</button><button class="btn-green" style="margin-top:6px; background:#00c853;" onclick="abrirModalRetiroChofer()">💸 Retirar Dinero (Pago Móvil)</button>
+</div>
+</div>
+<script>
+const DB_URL = "https://" + "unis-app-372c4-default-rtdb." + "firebaseio." + "com/";
+const esriUrl = "https://" + "server.arcgisonline." + "com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}";
+const map = L.map('map', { zoomControl: false }).setView([-22.9068, -43.1729], 13);
+L.tileLayer(esriUrl, { maxZoom: 19 }).addTo(map);
+setTimeout(() => map.invalidateSize(), 300);
+
+let pin1 = null, pin2 = null, ruta = null, base = 1.5, serv = 'UNIS GO', km = 0, total = 0, modo = 'cliente', timer = null, activoId = null;
+let fotoChofer = "https://flaticon.com", fotoCarro = "https://flaticon.com";
+let pasajero = JSON.parse(localStorage.getItem('u_pas_v2') || 'null');
+let conductor = JSON.parse(localStorage.getItem('u_drv_v2') || 'null');
+let saldo = parseFloat(localStorage.getItem('u_sal_v2') || '0');
+let ganancia = parseFloat(localStorage.getItem('u_gan_v2') || '0');
+let comision = parseFloat(localStorage.getItem('u_com_v2') || '0');
+
+function ui() {
+  document.getElementById('saldoHeader').innerText = modo === 'cliente' ? `$${saldo.toFixed(2)}` : `$${ganancia.toFixed(2)}`;
+  if (pasajero) { document.getElementById('regPasajeroBox').classList.add('hidden'); if (!activoId) document.getElementById('formPedidoBox').classList.remove('hidden'); }
+  if (conductor) {
+    document.getElementById('regConductorBox').classList.add('hidden');
+    document.getElementById('radarConductorBox').classList.remove('hidden');
+    document.getElementById('drvHeaderNombre').innerText = `${conductor.nombre} (${conductor.placa})`;
+    document.getElementById('drvHeaderCarro').innerText = `${conductor.carro} • ${conductor.tel}`;
+    document.getElementById('drvGananciaTxt').innerText = ganancia.toFixed(2);
+    document.getElementById('appComisionTxt').innerText = comision.toFixed(2);
+  }
+}
+ui();
+
+function iniciarConServicio(tarifa, nombre) {
+  document.getElementById('splashInicio').style.display = 'none';
+  base = tarifa; serv = nombre; document.getElementById('nomServ').innerText = nombre;
+  cambiarModo('cliente'); setTimeout(() => map.invalidateSize(), 200);
+}
+
+function entrarConductor() {
+  document.getElementById('splashInicio').style.display = 'none';
+  cambiarModo('conductor'); setTimeout(() => map.invalidateSize(), 200);
+}
+
+async function guardarPasajero() {
+  const nombre = document.getElementById('pasNombre').value.trim();
+  const cedula = document.getElementById('pasCedula').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const tel = document.getElementById('pasTel').value.trim();
+  if (!nombre || !cedula || !tel) return alert("Completa nombre, cédula y teléfono."); if (!document.getElementById("chkTyCPas").checked) return alert("Debes aceptar los Términos y Condiciones de UNIS Venezuela.");
+  const check = await fetch(`${DB_URL}cedulas/${cedula}.json`);
+  const existe = await check.json();
+  if (existe) { alert("⚠️ Esta cédula ya reclamó su bono. Saldo: $0.00."); saldo = 0; }
+  else {
+    await fetch(`${DB_URL}cedulas/${cedula}.json`, { method: 'PUT', body: JSON.stringify({ nombre, cedula, tel, bono: 10 }) });
+    saldo = 10; alert("🎉 ¡Bienvenido! Se acreditaron $10.00 de regalo a tu cédula.");
+  }
+  pasajero = { nombre, cedula, tel };
+  localStorage.setItem('u_pas_v2', JSON.stringify(pasajero)); localStorage.setItem('u_sal_v2', saldo.toFixed(2)); ui();
+}
+function procesarFoto(inp, tipo) {
+  if (!inp.files || !inp.files[0]) return;
+  const r = new FileReader();
+  r.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const esDoc = ['cedula','licencia','placa','seguro'].includes(tipo);
+      const tam = esDoc ? 480 : 140;
+      const c = document.createElement('canvas'); c.width = tam; c.height = tam;
+      c.getContext('2d').drawImage(img, 0, 0, tam, tam);
+      const dataUrl = c.toDataURL('image/jpeg', 0.75);
+      if (tipo === 'chofer') fotoChofer = dataUrl;
+      else if (tipo === 'carro') fotoCarro = dataUrl;
+      else if (tipo === 'cedula') fotoCedula = dataUrl;
+      else if (tipo === 'licencia') fotoLicencia = dataUrl;
+      else if (tipo === 'placa') fotoPlaca = dataUrl;
+      else if (tipo === 'seguro') fotoSeguro = dataUrl;
+      document.getElementById('previewFotoTxt').innerText = "✅ Foto de " + tipo + " cargada";
+    };
+    img.src = e.target.result;
+  };
+  r.readAsDataURL(inp.files[0]);
+}
+
+function guardarConductor() {
+  const nombre = document.getElementById('drvNombre').value.trim(), cedula = document.getElementById('drvCedula').value.trim();
+  const tel = document.getElementById('drvTel').value.trim(), carro = document.getElementById('drvCarro').value.trim();
+  const placa = document.getElementById('drvPlaca').value.trim().toUpperCase();
+  const direccion = document.getElementById('drvDireccion').value.trim();
+if (!nombre || !cedula || !tel || !carro || !placa || !direccion) return alert("Completa todos los datos, incluyendo tu dirección residencial exacta.");
+if (!document.getElementById("chkTyCDrv").checked) return alert("Debes aceptar los Términos Legales y la verificación domiciliaria para trabajar en UNIS.");
+  if (!fotoCedula || !fotoLicencia || !fotoPlaca || !fotoSeguro) return alert("Debes subir las 4 fotos obligatorias: Cédula, Licencia, Foto de Placa y Seguro del Estado.");
+  conductor = { nombre, cedula, tel, carro, placa, direccion, foto: fotoChofer, fotoCarro, fotoCedula, fotoLicencia, fotoPlaca, fotoSeguro, estado_general: "pendiente", notas_soporte: "", bancoPM: document.getElementById("drvBancoPM")?.value || "", telPM: document.getElementById("drvTelPM")?.value || "", cedulaPM: document.getElementById("drvCedulaPM")?.value || "", aceptoTyC: true, fechaRegistro: new Date().toISOString() }; fetch(`${DB_URL}conductores/${cedula.replace(/[^A-Z0-9]/g,"")}.json`, { method: "PUT", body: JSON.stringify(conductor) });
+  localStorage.setItem('u_drv_v2', JSON.stringify(conductor)); if(typeof verificarEstadoUnis === "function") verificarEstadoUnis(); ui(); escuchar();
+}
+
+function editarPerfilConductor() {
+  document.getElementById('radarConductorBox').classList.add('hidden');
+  document.getElementById('regConductorBox').classList.remove('hidden');
+}
+
+map.on('click', e => {
+  if (modo !== 'cliente' || !pasajero || activoId) return;
+  if (!pin1) { pin1 = L.marker(e.latlng).addTo(map); document.getElementById('instruccionTxt').innerText = "Ahora toca tu destino"; }
+  else if (!pin2) { pin2 = L.marker(e.latlng).addTo(map); document.getElementById('instruccionTxt').innerText = "Confirma abajo"; calc(); }
+});
+
+function calc() {
+  if (!pin1 || !pin2) return;
+  if (ruta) map.removeLayer(ruta);
+  ruta = L.polyline([pin1.getLatLng(), pin2.getLatLng()], { color: '#f97316', weight: 5 }).addTo(map);
+  map.fitBounds(ruta.getBounds());
+  const millas = (map.distance(pin1.getLatLng(), pin2.getLatLng()) / 1609.34) * 1.25;
+  const f = (tarifaMilla) => millas < 4 ? "2.50" : (millas * tarifaMilla).toFixed(2);
+  document.getElementById('pX').innerText = "$" + f(0.50);
+  document.getElementById('pB').innerText = "$" + f(1.10);
+  document.getElementById('pE').innerText = "$" + f(0.45);
+  document.getElementById('pV').innerText = "$" + f(0.70);
+  total = parseFloat(f(base));
+  document.getElementById('montoBtn').innerText = `${total.toFixed(2)} (${millas.toFixed(1)} mi)`;
+}
+
+function elegirServicio(el, b, n) {
+  document.querySelectorAll('.ride-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected'); base = b; serv = n; document.getElementById('nomServ').innerText = n; calc();
+}
+
+function limpiarMapa() {
+  if (pin1) map.removeLayer(pin1); if (pin2) map.removeLayer(pin2); if (ruta) map.removeLayer(ruta);
+  pin1 = pin2 = ruta = null; total = 0; document.getElementById('montoBtn').innerText = "$0.00";
+}
+
+function cambiarModo(m) {
+  modo = m; clearInterval(timer);
+  document.getElementById('btnCliente').classList.toggle('active', m === 'cliente');
+  document.getElementById('btnConductor').classList.toggle('active', m === 'conductor');
+  document.getElementById('panelCliente').classList.toggle('hidden', m !== 'cliente');
+  document.getElementById('panelConductor').classList.toggle('hidden', m !== 'conductor');
+  ui();
+  if (m === 'conductor' && conductor) { escuchar(); timer = setInterval(escuchar, 3500); }
+  if (m === 'cliente' && activoId) { timer = setInterval(verificarCliente, 3000); }
+}
+
+async function enviarPedido() {
+  const cliBancoPM = document.getElementById('cliBancoPM')?.value || '';
+  const cliTelPM = document.getElementById('cliTelPM')?.value.trim() || '';
+  const cliCedulaPM = document.getElementById('cliCedulaPM')?.value.trim() || '';
+  const cliRefPM = document.getElementById('cliRefPM')?.value.trim() || '';
+  if (!cliBancoPM || !cliTelPM || !cliCedulaPM || !cliRefPM) {
+    return alert("Por favor completa los datos de tu Pago Móvil y los últimos 6 dígitos de referencia para solicitar el viaje.");
+  }
+  localStorage.setItem('unis_cli_pm', JSON.stringify({ cliBancoPM, cliTelPM, cliCedulaPM }));
+  if (!pin1 || !pin2) return alert("Marca recogida y destino en el mapa.");
+  if (saldo < total) return alert("Saldo insuficiente en tu billetera UNIS.");
+  const m = parseFloat(total.toFixed(2)), choferNeto = parseFloat((m * 0.90).toFixed(2)), appFee = parseFloat((m * 0.10).toFixed(2));
+  const res = await fetch(`${DB_URL}pedidos.json`, { method: 'POST', body: JSON.stringify({
+    serv, pasNom: pasajero.nombre, pasTel: pasajero.tel,
+    oriTxt: document.getElementById('refOrigen').value || "Mapa", desTxt: document.getElementById('refDestino').value || "Mapa",
+    m, choferNeto, appFee, ori: pin1.getLatLng(), des: pin2.getLatLng(), estado: "pendiente", pagoMovilCliente: { banco: cliBancoPM, tel: cliTelPM, cedula: cliCedulaPM, referencia: cliRefPM }
+  })});
+  const j = await res.json(); activoId = j.name;
+  document.getElementById('formPedidoBox').classList.add('hidden');
+  document.getElementById('viajeActivoBox').classList.remove('hidden');
+  document.getElementById('estadoViajeTitulo').innerText = `⏳ Buscando unidad ($${m.toFixed(2)})...`;
+  timer = setInterval(verificarCliente, 3000);
+}
+
+async function verificarCliente() {
+  if (!activoId) return;
+  const r = await fetch(`${DB_URL}pedidos/${activoId}.json`); const p = await r.json();
+  if (p && p.estado === "aceptado" && p.chofer) {
+    clearInterval(timer);
+    if (!localStorage.getItem('pag_' + activoId)) {
+      saldo = Math.max(0, saldo - p.m); localStorage.setItem('u_sal_v2', saldo.toFixed(2)); localStorage.setItem('pag_' + activoId, '1'); ui();
+    }
+    document.getElementById('estadoViajeTitulo').innerText = "✅ ¡Conductor asignado y viaje pagado!";
+    document.getElementById('infoChoferAsignado').innerHTML = `
+      <div class="driver-assigned">
+        <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
+          <div style="display:flex; gap:10px; align-items:center;">
+            <img src="${p.chofer.foto}" class="driver-avatar">
+            <div><b>${p.chofer.nombre}</b><br><small>🚘 ${p.chofer.carro}</small><br><span class="plate-badge">${p.chofer.placa}</span></div>
+          </div>
+          <img src="${p.chofer.fotoCarro || fotoCarro}" class="car-thumb">
+        </div>
+        <div style="background:#064e3b; color:#6ee7b7; padding:6px; border-radius:8px; font-size:0.8rem; text-align:center;">
+          Pagado: $${p.m.toFixed(2)} (90% Chofer: $${p.choferNeto.toFixed(2)} • 10% App: $${p.appFee.toFixed(2)})
+        </div>
+        <div class="row-2">
+          <a href="tel:${p.chofer.tel}" class="btn-dark" style="flex:1;">📞 Llamar (${p.chofer.tel})</a>
+          <a href="https://wa.me{p.chofer.tel.replace(/[^0-9]/g,'')}" target="_blank" class="btn-green" style="flex:1; text-align:center; text-decoration:none;">💬 WhatsApp</a>
+        </div>
+      </div>`;
+  }
+}
+
+function finalizarVistaCliente() {
+  activoId = null; clearInterval(timer);
+  document.getElementById('viajeActivoBox').classList.add('hidden');
+  document.getElementById('formPedidoBox').classList.remove('hidden'); limpiarMapa();
+}
+
+let rutaChoferLayer = null;
+let pinChoferInicio = null;
+let pinChoferDestino = null;
+
+function limpiarRutaChofer() {
+  if (rutaChoferLayer && typeof map !== 'undefined') { map.removeLayer(rutaChoferLayer); rutaChoferLayer = null; }
+  if (pinChoferInicio && typeof map !== 'undefined') { map.removeLayer(pinChoferInicio); pinChoferInicio = null; }
+  if (pinChoferDestino && typeof map !== 'undefined') { map.removeLayer(pinChoferDestino); pinChoferDestino = null; }
+}
+
+async function trazarRutaChofer(lat1, lng1, lat2, lng2, colorLinea, textoInicio, textoFin) {
+  if (!lat1 || !lng1 || !lat2 || !lng2 || typeof map === 'undefined') return;
+  limpiarRutaChofer();
+  try {
+    const res = await fetch(`https://project-osrm.org{lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if (data.routes && data.routes) {
+      const coords = data.routes.geometry.coordinates.map(c => [c, c]);
+      rutaChoferLayer = L.polyline(coords, { color: colorLinea, weight: 6, opacity: 0.9 }).addTo(map);
+      pinChoferInicio = L.marker([lat1, lng1]).addTo(map).bindPopup(textoInicio);
+      pinChoferDestino = L.marker([lat2, lng2]).addTo(map).bindPopup(textoFin).openPopup();
+      map.fitBounds(rutaChoferLayer.getBounds(), { padding: [40, 40] });
+    }
+  } catch (e) {}
+}
+
+async function escuchar() {
+  const r = await fetch(`${DB_URL}pedidos.json`);
+  const d = await r.json();
+  const box = document.getElementById('contenedorViajes');
+  if (!d) {
+    limpiarRutaChofer();
+    box.innerHTML = "<small style='color:#888;'>Sin pedidos pendientes.</small>";
+    return;
+  }
+
+  const miCedula = conductor && conductor.cedula ? conductor.cedula.replace(/[^A-Z0-9]/g, "") : "";
+  let viajeEnCursoId = null;
+  let viajeEnCurso = null;
+
+  // Buscar si este chofer ya tiene un servicio aceptado o en curso
+  for (let id in d) {
+    const v = d[id];
+    const cedPedido = v.chofer && v.chofer.cedula ? v.chofer.cedula.replace(/[^A-Z0-9]/g, "") : "";
+    if ((v.estado === "aceptado" || v.estado === "en_curso") && cedPedido === miCedula) {
+      viajeEnCursoId = id;
+      viajeEnCurso = v;
+      break;
+    }
+  }
+
+  // Si tiene un servicio activo, mostrar solo la gestión paso a paso de ese servicio
+  if (viajeEnCurso) {
+    const oLat = viajeEnCurso.oriLat || viajeEnCurso.lat1;
+    const oLng = viajeEnCurso.oriLng || viajeEnCurso.lng1;
+    const dLat = viajeEnCurso.destLat || viajeEnCurso.lat2;
+    const dLng = viajeEnCurso.destLng || viajeEnCurso.lng2;
+
+    if (viajeEnCurso.estado === "aceptado") {
+      // Etapa 1: Ruta desde donde está el chofer hasta el punto de partida del cliente
+      if (!rutaChoferLayer && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => trazarRutaChofer(pos.coords.latitude, pos.coords.longitude, oLat, oLng, "#2979ff", "Tu ubicación", "Punto de partida: " + viajeEnCurso.oriTxt),
+          () => trazarRutaChofer(oLat, oLng, dLat, dLng, "#2979ff", "Punto de partida", "Destino")
+        );
+      }
+
+      box.innerHTML = `
+        <div class="trip-card" style="border:2px solid #2979ff; background:#151d29;">
+          <div style="color:#2979ff; font-weight:bold; font-size:13px; margin-bottom:6px;">🔵 PASO 1: DIRÍGETE AL PUNTO DE PARTIDA</div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <b>${viajeEnCurso.serv}</b>
+            <b style="color:#aaa;">Pago al finalizar: ${viajeEnCurso.choferNeto.toFixed(2)}</b>
+          </div>
+          <small>👤 <b>${viajeEnCurso.pasNom}</b> (${viajeEnCurso.pasTel})<br>
+          🔵 <b>Recoger en:</b> ${viajeEnCurso.oriTxt}<br>
+          🏁 <b>Destino:</b> ${viajeEnCurso.destTxt}</small>
+          <button class="btn-green" style="background:#2979ff; color:#fff; margin-top:10px;" onclick="confirmarRecogida('${viajeEnCursoId}', ${oLat || 0}, ${oLng || 0}, ${dLat || 0}, ${dLng || 0})">
+            ✅ Ya estoy con el cliente (Iniciar Viaje)
+          </button>
+        </div>`;
+    } else if (viajeEnCurso.estado === "en_curso") {
+      // Etapa 2: Ruta desde el punto de partida hasta el punto de llegada
+      if (!rutaChoferLayer) {
+        trazarRutaChofer(oLat, oLng, dLat, dLng, "#00e676", "Inicio: " + viajeEnCurso.oriTxt, "Llegada: " + viajeEnCurso.destTxt);
+      }
+
+      box.innerHTML = `
+        <div class="trip-card" style="border:2px solid #00e676; background:#14261c;">
+          <div style="color:#00e676; font-weight:bold; font-size:13px; margin-bottom:6px;">🟢 PASO 2: EN RUTA AL PUNTO DE LLEGADA</div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <b>${viajeEnCurso.serv}</b>
+            <b style="color:#00e676;">A cobrar: ${viajeEnCurso.choferNeto.toFixed(2)}</b>
+          </div>
+          <small>👤 <b>${viajeEnCurso.pasNom}</b> (${viajeEnCurso.pasTel})<br>
+          🏁 <b>Llevar a:</b> ${viajeEnCurso.destTxt}</small>
+          <button class="btn-green" style="margin-top:10px;" onclick="finalizarYRecibirPago('${viajeEnCursoId}', ${viajeEnCurso.m}, ${viajeEnCurso.choferNeto}, ${viajeEnCurso.appFee})">
+            🏁 Confirmar Carrera Finalizada y Recibir Pago (${viajeEnCurso.choferNeto.toFixed(2)})
+          </button>
+        </div>`;
+    }
+    return;
+  }
+
+  // Si no tiene viaje activo, mostrar solicitudes pendientes disponibles
+  limpiarRutaChofer();
+  let h = "";
+  Object.keys(d).reverse().forEach(id => {
+    const v = d[id];
+    if (v.estado === "pendiente") {
+      h += `<div class="trip-card">
+        <div style="display:flex; justify-content:space-between;"><b>${v.serv}</b><b style="color:#10b981;">Ganancia: ${v.choferNeto.toFixed(2)} (de ${v.m.toFixed(2)})</b></div>
+        <small>👤 ${v.pasNom} (${v.pasTel})<br>🔵 ${v.oriTxt} ➔ 🏁 ${v.destTxt}</small>
+        <button class="btn-green" onclick="aceptar('${id}')">Aceptar Servicio</button>
+      </div>`;
+    }
+  });
+  box.innerHTML = h || "<small style='color:#888;'>🟢 Estás activo y disponible. Esperando solicitudes...</small>";
+}
+
+async function aceptar(id) {
+  limpiarRutaChofer();
+  await fetch(`${DB_URL}pedidos/${id}.json`, {
+    method: 'PATCH',
+    body: JSON.stringify({ estado: 'aceptado', chofer: conductor })
+  });
+  escuchar();
+}
+
+async function confirmarRecogida(id, oLat, oLng, dLat, dLng) {
+  limpiarRutaChofer();
+  await fetch(`${DB_URL}pedidos/${id}.json`, {
+    method: 'PATCH',
+    body: JSON.stringify({ estado: 'en_curso', horaRecogida: new Date().toISOString() })
+  });
+  if (oLat && dLat) {
+    trazarRutaChofer(oLat, oLng, dLat, dLng, "#00e676", "Punto de partida", "Punto de llegada");
+  }
+  escuchar();
+}
+
+async function finalizarYRecibirPago(id, m, neto, fee) {
+  await fetch(`${DB_URL}pedidos/${id}.json`, {
+    method: 'PATCH',
+    body: JSON.stringify({ estado: 'finalizado', horaFin: new Date().toISOString() })
+  });
+  limpiarRutaChofer();
+  ganancia += neto;
+  comision += fee;
+  localStorage.setItem('u_gan_v2', ganancia.toFixed(2));
+  localStorage.setItem('u_com_v2', comision.toFixed(2));
+  ui();
+  alert(`✅ Carrera finalizada con éxito.\n💵 Pago recibido (90%): ${neto.toFixed(2)}\n🏛️ App (10%): ${fee.toFixed(2)}\n\nYa estás disponible para un nuevo servicio.`);
+  escuchar();
+}
+</script><div id="modalTyC" class="hidden" style="position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.92); display:flex; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#111827; border:1px solid #f97316; border-radius:18px; max-width:500px; width:100%; max-height:82vh; display:flex; flex-direction:column; overflow:hidden;">
+    <div style="background:#1e293b; padding:14px 16px; font-weight:900; color:#f97316; display:flex; justify-content:space-between; align-items:center;">
+      <span>⚖️ TÉRMINOS, LEYES Y SEGURIDAD - UNIS</span>
+      <button onclick="document.getElementById('modalTyC').classList.add('hidden')" style="background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">✖</button>
+    </div>
+    <div style="padding:16px; overflow-y:auto; font-size:0.82rem; color:#e2e8f0; line-height:1.5; display:flex; flex-direction:column; gap:10px;">
+      <p><b>1. NATURALEZA DEL SERVICIO (VENEZUELA):</b> UNIS es una plataforma tecnológica de intermediación para movilidad (UNIS GO, UNIS PRIME), entrega de alimentos (UNIS EATS) y encomiendas (UNIS PACK) en la República Bolivariana de Venezuela.</p>
+      <p><b>2. TOLERANCIA CERO AL ALCOHOL Y SUSTANCIAS:</b> Queda terminantemente prohibido conducir bajo los efectos de bebidas alcohólicas o sustancias estupefacientes/psicotrópicas. Conforme al <b>Art. 194 de la Ley de Transporte Terrestre</b>, el conductor asume plena responsabilidad civil, administrativa y penal ante cualquier siniestro.</p>
+      <p><b>3. EXCESO DE VELOCIDAD Y ACCIDENTES DE TRÁNSITO:</b> Todo conductor está obligado a respetar los límites de velocidad y normas del <b>INTT (Arts. 169, 179 y 181 LTT)</b>. En caso de accidente vial con lesiones o daños materiales, el conductor responderá directamente conforme al Código Penal y la Ley de Transporte Terrestre, eximiendo a UNIS de responsabilidad solidaria.</p>
+      <p><b>4. ROBO, HURTO Y APROPIACIÓN INDEBIDA:</b> Cualquier sustracción, retención indebida de paquetes (UNIS PACK/EATS), robo o hurto cometido por conductores o pasajeros será denunciado de inmediato bajo los <b>Arts. 451-455 y 466-468 del Código Penal Venezolano</b> y la <b>Ley sobre el Hurto y Robo de Vehículos Automotores</b>.</p>
+      <p><b>5. VALIDACIÓN DE DIRECCIÓN RESIDENCIAL Y DATOS CONFIDENCIALES:</b> Todo conductor que trabaje en UNIS declara bajo fe de juramento que su <b>dirección residencial</b>, cédula de identidad, foto biométrica y documentos del vehículo son reales y verificables. UNIS podrá realizar visitas o auditorías de validación domiciliaria.</p>
+      <p><b>6. COOPERACIÓN CON AUTORIDADES COMPETENTES:</b> Al aceptar estos términos, el usuario y el conductor autorizan expresamente a UNIS a levantar la confidencialidad y entregar de inmediato su expediente completo (cédula, dirección residencial exacta, fotos, placa, teléfono y rastreo GPS) al <b>CICPC, Policía Nacional Bolivariana (PNB), INTT, Ministerio Público y Tribunales</b> de Venezuela ante cualquier denuncia de delito, accidente grave o violación de ley.</p>
+    </div>
+    <div style="padding:12px 16px; background:#1e293b;">
+      <button class="btn-green" onclick="document.getElementById('modalTyC').classList.add('hidden')">Entendido y Acepto</button>
+    </div>
+  </div>
+</div>
+<!-- INICIO: LISTA DE ESPERA UNIS -->
+<div id="pantalla-espera-conductor" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#121212; color:#ffffff; z-index:99999; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:20px; box-sizing:border-box; font-family:Arial, sans-serif;">
+  <div style="max-width:420px; background:#1e1e1e; border:1px solid #333; border-radius:12px; padding:30px; box-shadow:0 8px 24px rgba(0,0,0,0.6);">
+    <div id="icono-estado" style="font-size:48px; margin-bottom:15px;">⏳</div>
+    <h2 id="titulo-estado" style="color:#00e676; margin:0 0 10px 0;">Solicitud en Lista de Espera</h2>
+    <p id="mensaje-estado" style="color:#cccccc; font-size:15px; line-height:1.5; margin-bottom:20px;">
+      Nuestro equipo de soporte está verificando tu cédula, licencia, placa y seguro del estado. Podrás conectarte para recibir viajes en cuanto seas aprobado.
+    </p>
+    <div id="caja-notas-soporte" style="display:none; background:#2c1515; border:1px solid #ff5252; color:#ff8a80; padding:12px; border-radius:8px; margin-bottom:20px; font-size:14px;">
+      <strong>Motivo de revisión:</strong> <span id="texto-notas-soporte"></span>
+    </div>
+    <button onclick="verificarEstadoUnis()" style="background:#00e676; color:#000; border:none; padding:12px 24px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%; margin-bottom:10px;">
+      Actualizar Estado Ahora
+    </button>
+    <button onclick="document.getElementById('pantalla-espera-conductor').style.display='none'; editarPerfilConductor();" style="background:#333; color:#fff; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; width:100%;">
+      Corregir Datos / Subir Fotos Nuevamente
+    </button>
+  </div>
+</div>
+
+<script>
+  const UNIS_ESPERA_URL = "https://unis-app-372c4-default-rtdb.firebaseio.com/";
+
+  async function verificarEstadoUnis() {
+    const drvRaw = localStorage.getItem('u_drv_v2');
+    if (!drvRaw) return;
+    const drv = JSON.parse(drvRaw);
+    if (!drv || !drv.cedula) return;
+
+    const idLimpio = drv.cedula.replace(/[^A-Z0-9]/g, "");
+    try {
+      const res = await fetch(`${UNIS_ESPERA_URL}conductores/${idLimpio}.json`);
+      const datos = await res.json();
+      const pantalla = document.getElementById('pantalla-espera-conductor');
+
+      if (!datos) return;
+
+      if (datos.estado_general === 'aprobado') {
+        pantalla.style.display = 'none';
+      } else {
+        pantalla.style.display = 'flex';
+        if (datos.estado_general === 'rechazado') {
+          document.getElementById('icono-estado').innerText = '⚠️';
+          document.getElementById('titulo-estado').innerText = 'Corrección Requerida';
+          document.getElementById('titulo-estado').style.color = '#ff5252';
+          document.getElementById('mensaje-estado').innerText = 'Soporte ha solicitado corregir un documento antes de activarte.';
+          document.getElementById('caja-notas-soporte').style.display = 'block';
+          document.getElementById('texto-notas-soporte').innerText = datos.notas_soporte || 'Revisa que las fotos sean legibles y vigentes.';
+        } else {
+          document.getElementById('icono-estado').innerText = '⏳';
+          document.getElementById('titulo-estado').innerText = 'Solicitud en Lista de Espera';
+          document.getElementById('titulo-estado').style.color = '#00e676';
+          document.getElementById('caja-notas-soporte').style.display = 'none';
+        }
+      }
+    } catch (e) {}
+  }
+
+  setInterval(verificarEstadoUnis, 4000);
+  window.addEventListener('load', verificarEstadoUnis);
+</script>
+<!-- FIN: LISTA DE ESPERA UNIS -->
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

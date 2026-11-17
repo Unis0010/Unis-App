@@ -1,0 +1,17 @@
+﻿{
+  "rules": {
+    "usuarios": {
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('usuarios/' + auth.uid + '/rol').val() === 'soporte'",
+        ".write": "$uid === auth.uid && (!newData.hasChild('rol') || newData.child('rol').val() !== 'soporte')"
+      }
+    },
+    "conductores": {
+      ".read": "root.child('usuarios/' + auth.uid + '/rol').val() === 'soporte'",
+      "$uid": {
+        ".read": "$uid === auth.uid || root.child('usuarios/' + auth.uid + '/rol').val() === 'soporte'",
+        ".write": "root.child('usuarios/' + auth.uid + '/rol').val() === 'soporte' || ($uid === auth.uid && newData.child('estado_general').val() === 'pendiente')"
+      }
+    }
+  }
+}

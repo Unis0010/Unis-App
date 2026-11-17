@@ -1,0 +1,243 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Soporte UNIS - Lista de Espera</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #121212; color: #ffffff; margin: 0; padding: 20px; }
+    h1 { color: #00e676; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .tarjeta { background: #1e1e1e; border: 1px solid #333; border-radius: 8px; padding: 15px; margin-bottom: 20px; }
+    .documentos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 15px 0; }
+    .doc-box { background: #2a2a2a; padding: 10px; border-radius: 5px; text-align: center; }
+    .doc-box img { max-width: 100%; height: 150px; object-fit: cover; border-radius: 4px; border: 1px solid #444; cursor: pointer; }
+    .acciones { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
+    button { padding: 10px 18px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+    .btn-aprobar { background-color: #00e676; color: #000; }
+    .btn-rechazar { background-color: #ff5252; color: #fff; }
+    .btn-refrescar { background-color: #2979ff; color: #fff; margin-bottom: 15px; }
+    input[type="text"] { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #2a2a2a; color: #fff; flex: 1; min-width: 220px; }
+  </style>
+</head>
+<body>
+
+  <div id="login-soporte" style="position:fixed; inset:0; background:#121212; z-index:999999; display:flex; justify-content:center; align-items:center; padding:20px;">
+    <div style="background:#1e1e1e; border:1px solid #333; padding:30px; border-radius:12px; max-width:360px; width:100%; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,0.8);">
+      <div style="font-size:40px; margin-bottom:10px;">🔐</div>
+      <h2 style="color:#00e676; margin:0 0 8px 0;">Acceso Soporte UNIS</h2>
+      <p style="color:#aaa; font-size:14px; margin-bottom:20px;">Ingresa la clave de autorización para revisar conductores.</p>
+      <input type="password" id="clave-input" placeholder="Clave de acceso..." onkeydown="if(event.key==='Enter') verificarClaveSoporte()" style="width:100%; padding:12px; border-radius:6px; border:1px solid #444; background:#2a2a2a; color:#fff; margin-bottom:15px; box-sizing:border-box; font-size:15px;">
+      <button onclick="verificarClaveSoporte()" style="width:100%; padding:12px; background:#00e676; color:#000; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:15px;">Entrar al Panel</button>
+      <p id="error-clave" style="color:#ff5252; font-size:13px; margin-top:12px; display:none;">Clave incorrecta. Intenta de nuevo.</p>
+    </div>
+  </div>
+
+  <h1>Panel de Soporte UNIS - Conductores en Lista de Espera</h1>
+  <button class="btn-refrescar" onclick="cargarConductores()">Actualizar Lista</button>
+  <button onclick="cerrarSesionSoporte()" style="background:#444; color:#fff; margin-left:10px; margin-bottom:15px;">Cerrar Sesión</button>
+  <div id="lista-conductores">Cargando solicitudes pendientes...</div>
+
+  <script>
+    const DB_URL = "https://unis-app-372c4-default-rtdb.firebaseio.com/";
+    const HASH_AUTORIZADO = "7e3065a43e747cbc454e85ca204c8fdb52e590514034d940a71fd8fee15912d4";
+
+    async function sha256(texto) {
+      const data = new TextEncoder().encode(texto);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function verificarClaveSoporte() {
+      const input = document.getElementById('clave-input').value;
+      if (await sha256(input) === HASH_AUTORIZADO) {
+        sessionStorage.setItem('unis_soporte_auth', HASH_AUTORIZADO);
+        document.getElementById('login-soporte').style.display = 'none';
+      } else {
+        document.getElementById('error-clave').style.display = 'block';
+      }
+    }
+
+    function cerrarSesionSoporte() {
+      sessionStorage.removeItem('unis_soporte_auth');
+      location.reload();
+    }
+
+    if (sessionStorage.getItem('unis_soporte_auth') === HASH_AUTORIZADO) {
+      document.getElementById('login-soporte').style.display = 'none';
+    }
+
+    function verGrande(src) {
+      const w = window.open("");
+      w.document.write('<img src="' + src + '" style="max-width:100%; background:#000;">');
+    }
+
+    async function cargarConductores() {
+      const contenedor = document.getElementById('lista-conductores');
+      try {
+        const res = await fetch(DB_URL + "conductores.json");
+        const datos = await res.json();
+        contenedor.innerHTML = "";
+        let hayPendientes = false;
+
+        if (datos) {
+          for (let id in datos) {
+            const c = datos[id];
+            if (!c.estado_general || c.estado_general === "pendiente") {
+              hayPendientes = true;
+              const div = document.createElement('div');
+              div.className = 'tarjeta';
+              div.innerHTML = `
+                <h3>${c.nombre || 'Sin nombre'} | Cédula: ${c.cedula || id} | Tel: ${c.tel || 'N/A'}</h3>
+                <p><strong>Vehículo:</strong> ${c.carro || 'No especificado'} | <strong>Placa:</strong> ${c.placa || 'N/A'} | <strong>Dirección:</strong> ${c.direccion || 'N/A'}</p>
+                <div class="documentos">
+                  <div class="doc-box"><p>Cédula</p><img src="${c.fotoCedula || ''}" onclick="verGrande(this.src)" alt="Sin foto"></div>
+                  <div class="doc-box"><p>Licencia</p><img src="${c.fotoLicencia || ''}" onclick="verGrande(this.src)" alt="Sin foto"></div>
+                  <div class="doc-box"><p>Foto de Placa</p><img src="${c.fotoPlaca || ''}" onclick="verGrande(this.src)" alt="Sin foto"></div>
+                  <div class="doc-box"><p>Seguro del Estado</p><img src="${c.fotoSeguro || ''}" onclick="verGrande(this.src)" alt="Sin foto"></div>
+                </div>
+                <div class="acciones">
+                  <button class="btn-aprobar" onclick="cambiarEstado('${id}', 'aprobado')">Aprobar Conductor</button>
+                  <input type="text" id="nota-${id}" placeholder="Motivo si se rechaza (ej. Seguro vencido o placa borrosa)...">
+                  <button class="btn-rechazar" onclick="cambiarEstado('${id}', 'rechazado')">Solicitar Corrección</button>
+                </div>
+              `;
+              contenedor.appendChild(div);
+            }
+          }
+        }
+
+        if (!hayPendientes) {
+          contenedor.innerHTML = "<p>No hay conductores pendientes en la lista de espera.</p>";
+        }
+      } catch (err) {
+        contenedor.innerHTML = "<p style='color:#ff5252;'>Error al conectar: " + err.message + "</p>";
+      }
+    }
+
+    async function cambiarEstado(id, nuevoEstado) {
+      const nota = document.getElementById(`nota-${id}`).value;
+      await fetch(DB_URL + "conductores/" + id + ".json", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estado_general: nuevoEstado,
+          notas_soporte: nuevoEstado === 'rechazado' ? nota : "Aprobado por soporte"
+        })
+      });
+      alert("Conductor actualizado a: " + nuevoEstado.toUpperCase());
+      cargarConductores();
+    }
+
+    cargarConductores();
+    setInterval(cargarConductores, 8000);
+  </script>
+  <div id="panel-sos-chats" style="display:none; margin-top:15px;">
+    <h2 style="color:#ff5252;">🚨 Alertas SOS Activas</h2><div id="lista-alertas-sos" style="margin-bottom:25px;">Sin alertas.</div>
+    <h2 style="color:#2979ff;">💬 Chats con Soporte</h2><div id="lista-chats-soporte">Sin mensajes.</div>
+  </div>
+  <script>
+    function abrirPanelEmergenciasSoporte() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activa'));
+      document.getElementById('tab-sos').classList.add('activa');
+      document.getElementById('lista-conductores').style.display = 'none';
+      document.getElementById('buscador-chofer').style.display = 'none';
+      document.getElementById('panel-sos-chats').style.display = 'block';
+      cargarAlertasYChats();
+    }
+    const oldCambiarFiltro = cambiarFiltro;
+    cambiarFiltro = function(f) {
+      document.getElementById('lista-conductores').style.display = 'block';
+      document.getElementById('buscador-chofer').style.display = 'block';
+      document.getElementById('panel-sos-chats').style.display = 'none';
+      oldCambiarFiltro(f);
+    };
+    async function cargarAlertasYChats() {
+      const alertas = await (await fetch(DB_URL + "alertas_sos.json")).json();
+      const contSos = document.getElementById('lista-alertas-sos'); contSos.innerHTML = ""; let totalSos = 0;
+      for (let id in alertas || {}) {
+        const a = alertas[id];
+        if (a.estado === 'activa') {
+          totalSos++;
+          const mapa = (a.lat && a.lat !== 'N/A') ? `<a href="https://google.com{a.lat},${a.lng}" target="_blank" style="background:#2979ff; color:#fff; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold;">📍 Ver Mapa</a>` : '';
+          contSos.innerHTML += `<div style="background:#2c1515; border:2px solid #ff5252; padding:15px; border-radius:8px; margin-bottom:12px;"><h3 style="color:#ff5252; margin:0 0 8px 0;">🚨 ${a.nombre} (${a.rol})</h3><p>ID: ${a.usuarioId} | Placa: ${a.placa || 'N/A'} | Viaje: ${a.pedidoId}</p><div style="display:flex; gap:10px;">${mapa}<button onclick="atenderSOS('${id}')" style="background:#00e676; color:#000;">✅ Atendida</button></div></div>`;
+        }
+      }
+      document.getElementById('cnt-sos').innerText = totalSos;
+      if (totalSos === 0) contSos.innerHTML = "<p style='color:#aaa;'>No hay alertas SOS activas.</p>";
+
+      const chats = await (await fetch(DB_URL + "chats_soporte.json")).json();
+      const contChats = document.getElementById('lista-chats-soporte'); contChats.innerHTML = "";
+      for (let uid in chats || {}) {
+        const info = chats[uid].info || { nombre: uid, rol: 'Usuario' }, msgs = chats[uid].mensajes || {};
+        let hist = "";
+        for (let mk in msgs) hist += `<div style="margin-bottom:6px; font-size:13px;"><strong style="color:#00e676;">${msgs[mk].remitenteNombre}:</strong> ${msgs[mk].texto}</div>`;
+        contChats.innerHTML += `<div class="tarjeta"><h4 style="margin:0 0 10px 0; color:#2979ff;">💬 ${info.nombre} (${info.rol})</h4><div style="background:#121212; padding:10px; border-radius:6px; max-height:150px; overflow-y:auto; margin-bottom:10px;">${hist}</div><div style="display:flex; gap:8px;"><input type="text" id="resp-chat-${uid}" class="motivo-input" placeholder="Responder..."><button class="btn-aprobar" onclick="responderChatSoporte('${uid}')">Enviar</button></div></div>`;
+      }
+    }
+    async function atenderSOS(id) { await fetch(`${DB_URL}alertas_sos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ estado: 'atendida' }) }); cargarAlertasYChats(); }
+    async function responderChatSoporte(uid) {
+      const inp = document.getElementById(`resp-chat-${uid}`), texto = inp.value.trim(); if (!texto) return;
+      await fetch(`${DB_URL}chats_soporte/${uid}/mensajes.json`, { method: 'POST', body: JSON.stringify({ remitenteId: 'SOPORTE', remitenteNombre: '🎧 Soporte UNIS', texto, hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }) });
+      inp.value = ""; cargarAlertasYChats();
+    }
+    setInterval(() => { if (document.getElementById('panel-sos-chats').style.display === 'block') cargarAlertasYChats(); }, 5000);
+  </script>
+  <div id="panel-pagos-retiros" style="display:none; margin-top:15px;">
+    <h2 style="color:#00e676;">💸 Solicitudes de Retiro de Choferes (Pago Móvil)</h2>
+    <div id="lista-retiros-choferes" style="margin-bottom:25px;">Cargando retiros...</div>
+
+    <h2 style="color:#2979ff;">📲 Pagos Móviles Reportados por Clientes</h2>
+    <div id="lista-pagos-clientes">Cargando pagos de viajes...</div>
+  </div>
+
+  <script>
+    function abrirPanelPagosSoporte() {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('activa'));
+      document.getElementById('tab-pagos').classList.add('activa');
+      document.getElementById('lista-conductores').style.display = 'none';
+      document.getElementById('buscador-chofer').style.display = 'none';
+      if (document.getElementById('panel-sos-chats')) document.getElementById('panel-sos-chats').style.display = 'none';
+      document.getElementById('panel-pagos-retiros').style.display = 'block';
+      cargarPagosYRetiros();
+    }
+
+    const prevCambiarFiltro = cambiarFiltro;
+    cambiarFiltro = function(f) {
+      document.getElementById('panel-pagos-retiros').style.display = 'none';
+      prevCambiarFiltro(f);
+    };
+
+    async function cargarPagosYRetiros() {
+      const retiros = await (await fetch(DB_URL + "retiros_choferes.json")).json();
+      const contRet = document.getElementById('lista-retiros-choferes'); contRet.innerHTML = ""; let cntRet = 0;
+      for (let id in retiros || {}) {
+        const r = retiros[id];
+        if (r.estado === 'pendiente') {
+          cntRet++;
+          contRet.innerHTML += `<div class="tarjeta" style="border-color:#00e676;"><h3 style="color:#00e676; margin:0 0 8px 0;">💸 Retiro: ${r.monto} — ${r.choferNombre}</h3><p><strong>Banco:</strong> ${r.bancoPM} | <strong>Tel:</strong> ${r.telPM} | <strong>C.I:</strong> ${r.cedulaPM}</p><p style="font-size:12px; color:#aaa;">Solicitado: ${r.fecha}</p><button class="btn-aprobar" onclick="marcarRetiroPagado('${id}')">✅ Marcar Pago Móvil Enviado</button></div>`;
+        }
+      }
+      document.getElementById('cnt-retiros').innerText = cntRet;
+      if (cntRet === 0) contRet.innerHTML = "<p style='color:#aaa;'>No hay retiros pendientes por pagar.</p>";
+
+      const pedidos = await (await fetch(DB_URL + "pedidos.json")).json();
+      const contPagos = document.getElementById('lista-pagos-clientes'); contPagos.innerHTML = "";
+      Object.keys(pedidos || {}).reverse().slice(0, 20).forEach(pid => {
+        const p = pedidos[pid];
+        if (p.pagoMovilCliente) {
+          contPagos.innerHTML += `<div class="tarjeta"><h4 style="margin:0 0 6px 0; color:#2979ff;">Ref: #${p.pagoMovilCliente.referencia} — Monto Viaje: ${(p.m || 0).toFixed(2)}</h4><p style="margin:0; font-size:13px;"><strong>Cliente:</strong> ${p.pasNom} | <strong>Banco:</strong> ${p.pagoMovilCliente.banco} | <strong>Tel:</strong> ${p.pagoMovilCliente.tel} | <strong>C.I:</strong> ${p.pagoMovilCliente.cedula}</p></div>`;
+        }
+      });
+      if (contPagos.innerHTML === "") contPagos.innerHTML = "<p style='color:#aaa;'>Aún no hay pagos móviles reportados en viajes.</p>";
+    }
+
+    async function marcarRetiroPagado(id) {
+      await fetch(`${DB_URL}retiros_choferes/${id}.json`, { method: 'PATCH', body: JSON.stringify({ estado: 'pagado', fechaPago: new Date().toLocaleString() }) });
+      alert("Retiro marcado como pagado.");
+      cargarPagosYRetiros();
+    }
+  </script>
+</body>
+</html>
+
+
