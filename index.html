@@ -391,7 +391,10 @@ async function trazarRutaChofer(lat1, lng1, lat2, lng2, colorLinea, textoInicio,
       pinChoferDestino = L.marker([lat2, lng2]).addTo(map).bindPopup(textoFin).openPopup();
       map.fitBounds(rutaChoferLayer.getBounds(), { padding: [40, 40] });
     }
-  } catch (e) {}
+  } catch (e) {} finally {
+      const btnAct = document.querySelector('#pantalla-espera-conductor button');
+      if (btnAct) btnAct.innerText = 'Actualizar Estado Ahora';
+    }
 }
 
 async function escuchar() {
@@ -556,7 +559,7 @@ async function finalizarYRecibirPago(id, m, neto, fee) {
     <button onclick="verificarEstadoUnis()" style="background:#00e676; color:#000; border:none; padding:12px 24px; border-radius:6px; font-weight:bold; cursor:pointer; width:100%; margin-bottom:10px;">
       Actualizar Estado Ahora
     </button>
-    <button onclick="document.getElementById('pantalla-espera-conductor').style.display='none'; editarPerfilConductor();" style="background:#333; color:#fff; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; width:100%;">
+    <button onclick="document.getElementById('pantalla-espera-conductor').style.display='none'; if(typeof editarPerfilConductor === 'function'){ editarPerfilConductor(); } else if(document.getElementById('regConductorBox')){ document.getElementById('regConductorBox').style.display='block'; }" style="background:#333; color:#fff; border:none; padding:10px 20px; border-radius:6px; cursor:pointer; width:100%;">
       Corregir Datos / Subir Fotos Nuevamente
     </button>
   </div>
@@ -573,7 +576,9 @@ async function finalizarYRecibirPago(id, m, neto, fee) {
 
     const idLimpio = drv.cedula.replace(/[^A-Z0-9]/g, "");
     try {
-      const res = await fetch(`${UNIS_ESPERA_URL}conductores/${idLimpio}.json`);
+      const btnAct = document.querySelector('#pantalla-espera-conductor button');
+    if (btnAct) btnAct.innerText = '⏳ Verificando estado...';
+    const res = await fetch(`${UNIS_ESPERA_URL}conductores/${idLimpio}.json?t=${Date.now()}`, { cache: 'no-store' });
       const datos = await res.json();
       const pantalla = document.getElementById('pantalla-espera-conductor');
 
@@ -597,7 +602,10 @@ async function finalizarYRecibirPago(id, m, neto, fee) {
           document.getElementById('caja-notas-soporte').style.display = 'none';
         }
       }
-    } catch (e) {}
+    } catch (e) {} finally {
+      const btnAct = document.querySelector('#pantalla-espera-conductor button');
+      if (btnAct) btnAct.innerText = 'Actualizar Estado Ahora';
+    }
   }
 
   setInterval(verificarEstadoUnis, 4000);
@@ -605,6 +613,7 @@ async function finalizarYRecibirPago(id, m, neto, fee) {
 </script>
 <!-- FIN: LISTA DE ESPERA UNIS -->
 </html>
+
 
 
 
